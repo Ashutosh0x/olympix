@@ -17,8 +17,6 @@ jobs:
   olympix-security:
     name: Olympix Vulnerability Scan
     runs-on: ubuntu-latest
-    # Only run if the API token secret is configured
-    if: ${{ secrets.OLYMPIX_API_TOKEN != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,7 +48,6 @@ jobs:
   olympix-json-report:
     name: Olympix JSON Report
     runs-on: ubuntu-latest
-    if: ${{ secrets.OLYMPIX_API_TOKEN != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

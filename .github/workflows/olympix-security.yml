@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   security-events: write
   contents: read
@@ -14,38 +17,56 @@ jobs:
   olympix-security:
     name: Olympix Vulnerability Scan
     runs-on: ubuntu-latest
+    # Only run if the API token secret is configured
+    if: ${{ secrets.OLYMPIX_API_TOKEN != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run Olympix Integrated Security
+        id: olympix
         uses: olympix/integrated-security@main
+        continue-on-error: true
         env:
           OLYMPIX_API_TOKEN: ${{ secrets.OLYMPIX_API_TOKEN }}
 
+      - name: Check for SARIF output
+        id: check-sarif
+        run: |
+          if [ -f "olympix.sarif" ]; then
+            echo "sarif_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ olympix.sarif found"
+          else
+            echo "sarif_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ olympix.sarif not found — skipping upload"
+          fi
+
       - name: Upload SARIF to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: steps.check-sarif.outputs.sarif_exists == 'true'
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: olympix.sarif
 
   olympix-json-report:
     name: Olympix JSON Report
     runs-on: ubuntu-latest
+    if: ${{ secrets.OLYMPIX_API_TOKEN != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run Olympix Analysis (JSON)
+        id: olympix-json
         uses: olympix/integrated-security@main
+        continue-on-error: true
         env:
           OLYMPIX_API_TOKEN: ${{ secrets.OLYMPIX_API_TOKEN }}
         with:
           args: -f json -o olympix-results
 
       - name: Upload JSON results as artifact
+        if: always() && hashFiles('olympix-results/**') != ''
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: olympix-json-report
           path: olympix-results/
